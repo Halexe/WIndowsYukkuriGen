@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import json
-import os
 import shlex
 import subprocess
 from dataclasses import dataclass
@@ -31,10 +30,7 @@ class VoicePreset:
             volume=self.volume or "",
             output=str(output_path),
         )
-        # Windowsのパスでは `C:\Program Files` のように空白やバックスラッシュを含むケースが
-        # 多いため、実行環境に合わせて `shlex.split` の `posix` フラグを切り替える。
-        # これにより、ユーザーがテンプレートにフルパスを指定した場合でも正しく実行できる。
-        return shlex.split(template, posix=os.name != "nt")
+        return shlex.split(template)
 
 
 class AudioGenerationError(RuntimeError):

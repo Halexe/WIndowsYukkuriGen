@@ -1,0 +1,18 @@
+{
+  "presets": [
+    {
+      "speaker": "霊夢",
+      "command_template": "AquesTalkPlayer.exe /voice {voice_id} /speed {speed} /volume {volume} /out {output} {text}",
+      "voice_id": "REIMU",
+      "speed": 100,
+      "volume": 100
+    },
+    {
+      "speaker": "魔理沙",
+      "command_template": "AquesTalkPlayer.exe /voice {voice_id} /speed {speed} /volume {volume} /out {output} {text}",
+      "voice_id": "MARISA",
+      "speed": 100,
+      "volume": 100
+    }
+  ]
+}

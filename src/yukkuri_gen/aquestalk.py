@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import os
 import shlex
 import subprocess
 from dataclasses import dataclass
@@ -22,15 +23,19 @@ class VoicePreset:
     volume: Optional[int] = None
 
     def build_command(self, text: str, output_path: Path) -> Iterable[str]:
-        template = self.command_template.format(
-            text=text,
-            speaker=self.speaker,
-            voice_id=self.voice_id or "",
-            speed=self.speed or "",
-            volume=self.volume or "",
-            output=str(output_path),
-        )
-        return shlex.split(template)
+        context = {
+            "text": text,
+            "speaker": self.speaker,
+            "voice_id": self.voice_id or "",
+            "speed": self.speed or "",
+            "volume": self.volume or "",
+            "output": str(output_path),
+        }
+        # コマンドテンプレートは引数単位でプレースホルダを差し替えるため、先に分解してから
+        # `str.format` を適用する。こうすることで `{output}` や `{text}` に空白が含まれていても
+        # 単一の引数として扱われ、Windows環境でも安全に実行できる。
+        tokens = shlex.split(self.command_template, posix=os.name != "nt")
+        return [token.format(**context) for token in tokens]
 
 
 class AudioGenerationError(RuntimeError):

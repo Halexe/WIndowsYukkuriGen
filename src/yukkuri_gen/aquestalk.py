@@ -7,14 +7,21 @@ import shlex
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable, Optional
+from tempfile import NamedTemporaryFile
+from typing import List, Optional, Tuple
 
 from .parser import DialogueLine
 
 
 @dataclass
 class VoicePreset:
-    """Configuration describing how to synthesize audio for a specific speaker."""
+    """Configuration describing how to synthesize audio for a specific speaker.
+
+    When ``use_text_file`` is enabled the dialogue text is written to a temporary
+    file using ``text_file_encoding`` and the resulting path is provided via the
+    ``{text_file}`` placeholder so command line tools such as ``aquostalk.exe``
+    can consume it.
+    """
 
     speaker: str
     command_template: str
@@ -22,7 +29,11 @@ class VoicePreset:
     speed: Optional[int] = None
     volume: Optional[int] = None
 
-    def build_command(self, text: str, output_path: Path) -> Iterable[str]:
+    use_text_file: bool = False
+    text_file_encoding: str = "utf-8"
+    text_file_suffix: str = ".txt"
+
+    def build_command(self, text: str, output_path: Path) -> Tuple[List[str], Optional[Path]]:
         context = {
             "text": text,
             "speaker": self.speaker,
@@ -31,11 +42,24 @@ class VoicePreset:
             "volume": self.volume or "",
             "output": str(output_path),
         }
+        temp_path: Optional[Path] = None
+        if self.use_text_file:
+            with NamedTemporaryFile(
+                "w",
+                encoding=self.text_file_encoding,
+                delete=False,
+                suffix=self.text_file_suffix,
+            ) as temp:
+                temp.write(text)
+                temp_path = Path(temp.name)
+            context["text_file"] = str(temp_path)
+        else:
+            context["text_file"] = ""
         # コマンドテンプレートは引数単位でプレースホルダを差し替えるため、先に分解してから
         # `str.format` を適用する。こうすることで `{output}` や `{text}` に空白が含まれていても
         # 単一の引数として扱われ、Windows環境でも安全に実行できる。
         tokens = shlex.split(self.command_template, posix=os.name != "nt")
-        return [token.format(**context) for token in tokens]
+        return [token.format(**context) for token in tokens], temp_path
 
 
 class AudioGenerationError(RuntimeError):
@@ -70,12 +94,19 @@ class AquesTalkGenerator:
                 raise AudioGenerationError(f"No voice preset configured for speaker {dialogue.speaker!r}")
 
             output_path = self.output_dir / f"{index:04d}_{preset.speaker}.wav"
-            command = list(preset.build_command(dialogue.normalized_text(), output_path))
+            command, temp_path = preset.build_command(dialogue.normalized_text(), output_path)
+            command_args = list(command)
             try:
-                subprocess.run(command, check=True)
+                subprocess.run(command_args, check=True)
             except subprocess.CalledProcessError as exc:
                 raise AudioGenerationError(
-                    f"AquesTalk command failed for speaker {dialogue.speaker!r}: {command}") from exc
+                    f"AquesTalk command failed for speaker {dialogue.speaker!r}: {command_args}") from exc
+            finally:
+                if temp_path is not None:
+                    try:
+                        temp_path.unlink()
+                    except OSError:
+                        pass
 
             generated.append(output_path)
 

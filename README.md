@@ -4,7 +4,7 @@ Windows向けに台本からAquesTalkの音声とPremiere Proに読み込めるF
 
 ## 使い方
 
-1. `aquestalk_presets.json` を `aquestalk_presets.example.json` を元に作成します。`command_template` にはAquesTalkのコマンドラインを記述し、`{text}` `{output}` `{speaker}` `{voice_id}` `{speed}` `{volume}` のプレースホルダが利用できます。
+1. `aquestalk_presets.json` を `aquestalk_presets.example.json` を元に作成します。`command_template` にはAquesTalkのコマンドラインを記述し、`{text}` `{text_file}` `{output}` `{speaker}` `{voice_id}` `{speed}` `{volume}` のプレースホルダが利用できます。
 2. `python app.py` を実行するとGUIが起動します。
 3. GUI上で台本を読み込み、必要に応じてAquesTalkの設定ファイルパスや出力フォルダ、プロジェクト名を設定します。
 4. 「音声生成」ボタンで台本の各セリフを音声化します。
@@ -37,3 +37,23 @@ Windows向けに台本からAquesTalkの音声とPremiere Proに読み込めるF
 3. もしくは `aquestalk_presets.json` の `command_template` を編集し、実際に配置したフォルダへの絶対パスを指定してください（例: `"C:\\Tools\\YukkuriVoiceGenWin\\AquesTalkPlayer.exe ..."`）。
 
 上記のいずれかを実施すると、AquesTalkPlayer が正しい音声データを読み込めるようになりエラーが解消されます。
+
+## aquostalk.exe を利用した音声生成
+
+`aquostalk.exe`（AquesTalk専用のコマンドラインツール）は日本語テキストを Shift_JIS などのテキストファイル経由で受け取る必要があります。このツールを利用する場合は、AquesTalk のプリセットに以下のような追加設定を行ってください。
+
+```json
+{
+  "speaker": "ナレーション",
+  "command_template": "aquostalk.exe /voice {voice_id} /speed {speed} /volume {volume} /file {text_file} /out {output}",
+  "voice_id": "NARRATION",
+  "speed": 100,
+  "volume": 100,
+  "use_text_file": true,
+  "text_file_encoding": "shift_jis"
+}
+```
+
+`use_text_file` を `true` に設定すると、台本の各行のテキストを一時ファイルに書き出して `{text_file}` プレースホルダに差し込みます。`text_file_encoding` は生成される一時ファイルの文字コードです（省略時は UTF-8）。`text_file_suffix` を設定すれば一時ファイルの拡張子も変更できます。
+
+これにより `aquostalk.exe` などの「テキストファイルでの入力」を前提としたツールでも正しく音声を生成できます。
